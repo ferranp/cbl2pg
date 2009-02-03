@@ -53,13 +53,13 @@ DLLIMPORT int sql_connect(PGconn **conn,char *db)
 {
   // db es string de conexio pic x(200), ho finalitzem amb un null
   db[199]='\0';
-  
+
   if (debug)
-      MessageBox(0,db,"sql_connect",MB_ICONINFORMATION);    
-    
+      MessageBox(0,db,"sql_connect",MB_ICONINFORMATION);
+
   *conn = PQconnectdb(db);
   //*conn = PQconnectStart(db);
-  
+
   if (*conn == NULL)
   {
     return -1;
@@ -98,36 +98,36 @@ DLLIMPORT int sql_disconnect(PGconn **conn)
 DLLIMPORT int sql_query(PGconn **conn,PGresult **res,struct sqlca *psqlca,char *sql)
 {
    struct sqlca ca;
-   FILE *f;
-   
+   FILE *f=NULL;
+
    if (conn == NULL){
-       MessageBox (0, "PGconn == NULL", "sql_query", MB_ICONINFORMATION);    
+       MessageBox (0, "PGconn == NULL", "sql_query", MB_ICONINFORMATION);
        return -1 ;
    }
    if (*conn == NULL){
-       MessageBox (0, "PGconn == NULL", "sql_query", MB_ICONINFORMATION);    
+       MessageBox (0, "PGconn == NULL", "sql_query", MB_ICONINFORMATION);
        return -1 ;
    }
    PQsetnonblocking(*conn,1);
-   
+
    if (PQstatus(*conn) != CONNECTION_OK){
-      MessageBox (0, "BAD CONNECTION", "sql_query", MB_ICONINFORMATION);    
+      MessageBox (0, "BAD CONNECTION", "sql_query", MB_ICONINFORMATION);
       PQreset(*conn);
    }
    *res=PQexec(*conn,sql);
-   
+
    if(debug || trace) {
       int i=strlen(sql) - 1;
       while(sql[i]==' ') i--;
       sql[i+1]='\0';
-      if (debug) MessageBox(0,sql,"sql_query",MB_ICONINFORMATION);    
+      if (debug) MessageBox(0,sql,"sql_query",MB_ICONINFORMATION);
       f = fopen("cbl2pg.log","a+");
       if (f != NULL) {
             fwrite(sql,strlen(sql),1,f);
             fwrite("\n",1,1,f);
       }
    }
-   
+
    memset(&ca,'\0',sizeof(struct sqlca));
 
    switch(PQresultStatus(*res)){
@@ -136,7 +136,7 @@ DLLIMPORT int sql_query(PGconn **conn,PGresult **res,struct sqlca *psqlca,char *
             break;
       case PGRES_COMMAND_OK:        // ok update o insert o delete
             ca.sqlcode=0;
-            if ((PQntuples(*res) == 0) && 
+            if ((PQntuples(*res) == 0) &&
                 (strtol(PQcmdTuples(*res),NULL, 0) == 0))
                    ca.sqlcode=100;
             break;
@@ -170,7 +170,7 @@ DLLIMPORT int sql_query(PGconn **conn,PGresult **res,struct sqlca *psqlca,char *
    strncpy (ca.sqlerrm.sqlerrmc,PQresultErrorMessage(*res),70);
    if(debug || trace){
       if (debug && (ca.sqlcode < 0))
-            MessageBox (0, PQresultErrorMessage(*res), "ERROR : sql_query", MB_ICONINFORMATION);    
+            MessageBox (0, PQresultErrorMessage(*res), "ERROR : sql_query", MB_ICONINFORMATION);
       if (f != NULL) {
             fwrite(PQresultErrorMessage(*res),strlen(PQresultErrorMessage(*res)),1,f);
             fwrite("\n",1,1,f);
@@ -194,7 +194,7 @@ DLLIMPORT int sql_query_free(PGresult **res){
 	    PQclear(*res);
 	    *res=NULL;
     }
-    
+
     return 0;
 }
 /***************************************************************************
@@ -204,10 +204,11 @@ int format_item(PGresult *res,int lin,int col,char *result){
 
    int oid,mod,size,len;
    long int inum;
+   int i;
    long long int lnum;
 //   char *pint;
 //   short *pshort;
-   char str[200];
+//   char str[200];
    int digits,decimals;
    char *c;
    double num;
@@ -220,11 +221,11 @@ int format_item(PGresult *res,int lin,int col,char *result){
    size=PQfsize(res,col);
    len=PQgetlength(res,lin,col);
    c=PQgetvalue(res,lin,col);
-     
+
    //  snprintf(tmp2,200,"oid: %d size: %d len: %d,lin:%d",oid,size,len,lin);
    //  MessageBox (0, tmp2, c, MB_ICONINFORMATION);
 
-   // taula de oid a 
+   // taula de oid a
    switch(oid){
       case 1700: // numeric
             digits= ((mod - 4) >> 16) ; //-4
@@ -238,8 +239,7 @@ int format_item(PGresult *res,int lin,int col,char *result){
             //MessageBox (0, str, c, MB_ICONINFORMATION);
 
             // la longitud del camp es digits i el signe al final
-            // posem tot a zero
-            memset(result,'0',digits);
+
             num=strtod (c, NULL);
             // multipliquem per 10**decimals per a treure el punt
             num = num * pow(10,decimals);
@@ -249,17 +249,20 @@ int format_item(PGresult *res,int lin,int col,char *result){
             // traiem el signe
             if (num < 0) num = num * -1;
             // formatejem
-            snprintf(tmp,20,"%020.0f",num);
+            snprintf(tmp,21,"%020.0f",num);
+            // Pose e a 0 els espais inicials
+            for (i=0;i<21;i++)
+            {
+            	if (tmp[i] == ' ') tmp[i] = '0';
+            }
             tmp[20]=0;
             //snprintf(tmp2,200,"num: %f dig: %d dec: %d",num,digits,decimals);
-            //if (decimals > 2)
-            //   MessageBox (0, tmp2, tmp, MB_ICONINFORMATION);
-               
+            //MessageBox (0, tmp2, tmp, MB_ICONINFORMATION);
             memcpy(result,tmp + 20 - digits ,digits);
             return (digits + 1);
             break;
       case 21: // int2 s9(4) sts
-            
+
             inum = strtol (c, NULL, 0);
             snprintf(tmp,21,"%020ld",inum);
 
@@ -278,7 +281,7 @@ int format_item(PGresult *res,int lin,int col,char *result){
             return 5;
             break;
       case 23: // int4 s9(9) sts
-            
+
             inum = strtol (c, NULL, 0);
             snprintf(tmp,21,"%020ld",inum);
 
@@ -313,10 +316,23 @@ int format_item(PGresult *res,int lin,int col,char *result){
             //   col,oid,mod,size,len,c);
             //MessageBox (0, tmp2, "Hi", MB_ICONINFORMATION);
             //
-            
+
             digits = mod - 4;
             if (strlen(c) == 0) return digits;
             memcpy(result,c,digits);
+            //snprintf(tmp,20,"Len ; %d,val<%s>",len,c);
+            //MessageBox (0, tmp, "char(x)", MB_ICONINFORMATION);
+            return digits;
+            break;
+      case 1043: // varchar (x)
+            //snprintf(tmp2,200,"Col:%d, oid:%d, mod:%d, size:%d , len:%d, valor<%s>",
+            //   col,oid,mod,size,len,c);
+            //MessageBox (0, tmp2, "Hi", MB_ICONINFORMATION);
+
+            digits = mod - 4;
+            if (strlen(c) == 0) return digits;
+            memset(result,' ',digits);
+            memcpy(result,c,strlen(c));
             //snprintf(tmp,20,"Len ; %d,val<%s>",len,c);
             //MessageBox (0, tmp, "char(x)", MB_ICONINFORMATION);
             return digits;
@@ -328,7 +344,7 @@ int format_item(PGresult *res,int lin,int col,char *result){
             //snprintf(tmp,20,"Len ; %d,val<%s>",len,c);
             //MessageBox (0, tmp, "char(x)", MB_ICONINFORMATION);
             return digits;
-            
+
       case 1082: // date
             // paseem de format aaaa-mm-dd a ddmmaaaa
             if (strlen(c)!=0) {
@@ -360,10 +376,10 @@ int format_item(PGresult *res,int lin,int col,char *result){
               memcpy(result +  8,c + 11,2); // hh
               memcpy(result + 10,c + 14,2); // mm
               memcpy(result + 12,c + 17,2); // ss
-              memcpy(result + 14,c + 20,6); // mmmmmm              
+              memcpy(result + 14,c + 20,6); // mmmmmm
             }
             return 20;
-            
+
       default: // altres, es copies les primeres 30 posicions del resultat
             memcpy(result,c,min(30,strlen(c)));
             snprintf(tmp,20,"%d,val<%s>",oid,c);
@@ -381,7 +397,7 @@ DLLIMPORT int sql_get_item(PGresult **res,int *lin,int *col,char *value){
     int linea,columna;
     linea=(signed int)*lin;
     columna=(signed int)*col;
-    
+
     return format_item(*res,(unsigned int)linea,(unsigned int)columna,value);
 }
 
@@ -402,19 +418,19 @@ DLLIMPORT int sql_get_item_by_name(PGresult **res,int *lin,char *colname,char *v
 DLLIMPORT int sql_get_line(PGresult **res,int *lin,char *value){
     int columns,i,len,linea;
     char *p;
-    char tmp[100];
+    //char tmp[100];
     p=value;
     linea=(signed int)*lin;
     //if (*lin != 0) {
     //  snprintf(tmp,20,"line:%d,%d,%d",*lin,linea,PQntuples(*res));
     //  MessageBox (0,tmp, "Camp INI", MB_ICONINFORMATION);
-    //}  
+    //}
 
     columns = PQnfields(*res);
     if (columns < 0)
         return columns;
     if (*lin >= PQntuples(*res)){
-   //    MessageBox (0,"molt feo", "FEO", MB_ICONINFORMATION);        
+   //    MessageBox (0,"molt feo", "FEO", MB_ICONINFORMATION);
        return PQntuples(*res);
         }
     for(i=0;i<columns;i++){
@@ -479,8 +495,8 @@ int formatejar_camp(char *sql,char*pdata,struct format_camp *pformat,char *valor
    if (debug) {
     memmove(nom,pformat->nom,20);
     nom[20]=0;
-    sprintf(tmp,"nom=%s,tipo=%c,len=%d,dec=%d",nom,pformat->tipo,len,dec);
-    //MessageBox (0, tmp, "Hi", MB_ICONINFORMATION);   
+    //sprintf(tmp,"nom=%s,tipo=%c,len=%d,dec=%d",nom,pformat->tipo,len,dec);
+    //MessageBox (0, tmp, "Hi", MB_ICONINFORMATION);
     strcat(valors,nom);
     strcat(valors,"=");
    }
@@ -488,6 +504,19 @@ int formatejar_camp(char *sql,char*pdata,struct format_camp *pformat,char *valor
            case 'C':
                      strcat(sql,"'");
                      PQescapeString(camp_editat,pdata,len);
+                     int ll;
+                     ll = strlen(camp_editat);
+                     ll--;
+                     while(ll>0)
+                     {
+                    	 if (camp_editat[ll] == ' ')
+                    	 {
+                    		 camp_editat[ll]=0;
+                    		 ll--;
+                    	 }else{
+                    		 ll=0;
+                    	 }
+                     }
                      strcat(sql,camp_editat);
                      strcat(sql,"'");
                      if (debug) {
@@ -495,7 +524,7 @@ int formatejar_camp(char *sql,char*pdata,struct format_camp *pformat,char *valor
                       strcat(valors,"<");
                       strcat(valors,camp_editat);
                       strcat(valors,">");
-                     }  
+                     }
                      break;
            case 'D':
                      if (strncmp(pdata,"00000000",8)==0) {
@@ -518,7 +547,7 @@ int formatejar_camp(char *sql,char*pdata,struct format_camp *pformat,char *valor
                       strcat(valors,"-");
                       strncat(valors,pdata,2);
                       strcat(valors,">");
-                     }  
+                     }
                      break;
            case 'N':
                      camp_editat[0]=pdata[len - 1];
@@ -537,7 +566,7 @@ int formatejar_camp(char *sql,char*pdata,struct format_camp *pformat,char *valor
                          strcat(valors,"<");
                          strcat(valors,camp_editat);
                          strcat(valors,">");
-                     }  
+                     }
                      break;
            case 'T':
                      strcat(sql,"'");
@@ -618,11 +647,11 @@ DLLIMPORT int sql_make_update(PGconn **conn,struct sqlca *psqlca,char *data,stru
        sprintf(tmp,"%p\0",pdata);
        MessageBox (0, tmp, "Debug", MB_ICONINFORMATION);
      }*/
-    
-    
+
+
     for(i=0;i< camps;i++){
         pformat++;
-        if ((pformat->tipo != ' ') && (pformat->key==' '))  { 
+        if ((pformat->tipo != ' ') && (pformat->key==' '))  {
           asignar_camp(sql,pdata,pformat);
           strcat(sql," , ");
         }
@@ -633,17 +662,17 @@ DLLIMPORT int sql_make_update(PGconn **conn,struct sqlca *psqlca,char *data,stru
     }
     sql[strlen(sql) - 3]=0;
 //    strcat(sql,"\0");
-    
+
 
 //    if (debug)
   //     MessageBox (0, sql, "Debug3", MB_ICONINFORMATION);
-    
+
     strcat(sql," where ");
     pformat=format;
     pdata=data;
     for(i=0;i< camps;i++){
         pformat++;
-        if (pformat->key=='K'){
+        if (pformat->key=='K' || pformat->key=='k'){
           asignar_camp(sql,pdata,pformat);
           strcat(sql," and ");
         }
@@ -652,7 +681,7 @@ DLLIMPORT int sql_make_update(PGconn **conn,struct sqlca *psqlca,char *data,stru
         pdata+=strtol(tmp,NULL,10);
     }
     sql[strlen(sql) - 5]=0;
-       
+
     i = sql_query(conn,&res,psqlca,sql);
     sql_query_free(&res);
     return i;
@@ -691,7 +720,7 @@ DLLIMPORT int sql_make_insert(PGconn **conn,struct sqlca *psqlca,char *data,stru
     pformat=format;
     for(i=0;i< camps;i++){
         pformat++;
-        if (pformat->tipo != ' '){
+        if ((pformat->key != 'k') && (pformat->tipo != ' ')) {
           long_nom=strcspn(pformat->nom," ");
           strncat(sql,pformat->nom,long_nom);
           strcat(sql,",");
@@ -704,10 +733,10 @@ DLLIMPORT int sql_make_insert(PGconn **conn,struct sqlca *psqlca,char *data,stru
     pdata=data;
     for(i=0;i< camps;i++){
         pformat++;
-        if (pformat->tipo != ' '){
+        if ((pformat->key != 'k') && (pformat->tipo != ' ')) {
           formatejar_camp(sql,pdata,pformat,valors);
           strcat(sql,",");
-        }  
+        }
         strncpy(tmp,pformat->len,3);
         tmp[3]=0;
         pdata+=strtol(tmp,NULL,10);
@@ -799,17 +828,17 @@ DLLIMPORT int sql_exec_file(PGconn **conn,struct sqlca *psqlca,char *filename){
     int sql_size = 1000,size,ret;
     PGresult *res;
     if (debug) MessageBox (0, filename, "Fitxer", MB_ICONINFORMATION);
-    
+
     f = fopen(filename,"r");
     if (f == NULL)
        return -1;
     sql = malloc(sql_size + 1);
-    
+
     while (fgets(buffer,1000,f)){
         buffer[strlen(buffer) - 1] = 0;
         size=strlen(sql) + strlen(buffer);
         if (!(size < sql_size)){
-                sql_size =  size;        
+                sql_size =  size;
                 sql = realloc(sql,sql_size + 1);
         }
         strcat(sql,buffer);
@@ -817,16 +846,16 @@ DLLIMPORT int sql_exec_file(PGconn **conn,struct sqlca *psqlca,char *filename){
 
     if (debug)  MessageBox (0, sql, "SQL", MB_ICONINFORMATION);
     ret = sql_query(conn,&res,psqlca,sql);
-    //MessageBox (0, "sqlquery OK", "Hi2", MB_ICONINFORMATION);    
+    //MessageBox (0, "sqlquery OK", "Hi2", MB_ICONINFORMATION);
     sql_query_free(&res);
     //MessageBox (0, "sql_query_Free OK", "Hi", MB_ICONINFORMATION);
     free(sql);
     return ret;
  }
- 
- 
- 
- 
+
+
+
+
 //   MessageBox (0, str, "Hi", MB_ICONINFORMATION);
 /***************************************************************************
  *                                                                         *
