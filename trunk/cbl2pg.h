@@ -97,5 +97,7 @@ DLLIMPORT int sql_make_update(PGconn **conn,struct sqlca *psqlca,char *data,stru
 DLLIMPORT int sql_make_insert(PGconn **conn,struct sqlca *psqlca,char *data,struct format_camp *format);
 DLLIMPORT int sql_make_create(PGconn **conn,struct sqlca *psqlca,struct format_camp *format);
 
+DLLIMPORT int sql_create_field_table(PGconn **conn,struct format_camp *format);
+
 DLLIMPORT int sql_exec_file(PGconn **conn,struct sqlca *psqlca,char *filename);
 #endif /* _DLL_H_ */

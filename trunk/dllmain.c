@@ -110,6 +110,148 @@ DLLIMPORT int sql_disconnect(PGconn **conn)
     PQfinish(*conn);
     return 0;
 }
+/***************************************************************************
+ *                                                                         *
+ ***************************************************************************/
+DLLIMPORT int sql_create_field_table(PGconn **conn,struct format_camp *format){
+    char sql[100];
+    char table[30];
+    char tmps[10];
+    int columns,col;
+    int oid,mod,size;
+    int digits,decimals;
+    int i;
+
+    PGresult *res;
+    if (conn == NULL){
+        MessageBox (0, "PGconn == NULL", "sql_create_field_table", MB_ICONINFORMATION);
+        return -1 ;
+    }
+    if (*conn == NULL){
+        MessageBox (0, "PGconn == NULL", "sql_create_field_table", MB_ICONINFORMATION);
+        return -1 ;
+    }
+    //MessageBox (0, "1", "1", MB_ICONINFORMATION);
+	memcpy ( table, format[0].nom, 27 );
+	table[27] = 0;
+	//MessageBox (0, table,"table", MB_ICONINFORMATION);
+	snprintf(sql,100,"select * from %s where 1=0", table);
+    //MessageBox (0, sql, "sql", MB_ICONINFORMATION);
+
+	PQsetnonblocking(*conn,1);
+	//MessageBox (0, "SS", "XXXX", MB_ICONINFORMATION);
+    if (PQstatus(*conn) != CONNECTION_OK){
+ 	  MessageBox (0, "BAD CONNECTION", "sql_create_field_table", MB_ICONINFORMATION);
+ 	  PQreset(*conn);
+    }
+    res=PQexec(*conn,sql);
+    switch(PQresultStatus(res)){
+       case PGRES_TUPLES_OK:         // ok select
+    	   break;
+       case PGRES_EMPTY_QUERY:       // ERROR
+       case PGRES_COMMAND_OK:        // ok update o insert o delete
+       case PGRES_COPY_OUT:          // copy cap al server
+       case PGRES_COPY_IN:           // copy des del server
+       case PGRES_BAD_RESPONSE:      // ERROR
+       case PGRES_NONFATAL_ERROR:    // ERROR
+       case PGRES_FATAL_ERROR:       // ERROR
+       default:
+           MessageBox (0, PQresultErrorMessage(res), "ERROR : sql_create_field_table", MB_ICONINFORMATION);
+           PQclear(res);
+           return -1;
+    	   break;
+    }
+
+    //MessageBox (0, "QUERY OK", "QUERY OK", MB_ICONINFORMATION);
+    columns = PQnfields(res);
+    if (columns < 1)
+        return -1;
+
+    for(col=0;col<columns;col++){
+    	   memcpy(format[col+1].nom, PQfname(res,col),strlen(PQfname(res,col)));
+    	   oid=PQftype(res,col);
+    	   mod=PQfmod(res,col);
+    	   size=PQfsize(res,col);
+    	   switch(oid){
+    	      case 1700: // numeric
+    	            digits= ((mod - 4) >> 16) ; //-4
+    	            decimals=((mod - 4) & 0x0000ffff);
+    	            if (mod == -1) {
+    	               digits = 14;
+    	               decimals = 2;
+    	            }
+    	            snprintf(tmps,10,"%03d",digits + 1);
+    	            memcpy(format[col+1].len,tmps,3);
+    	            snprintf(tmps,10,"%02d",decimals);
+    	            memcpy(format[col+1].dec,tmps,2);
+    	            format[col+1].tipo='N';
+    	            break;
+    	      case 21: // int2 s9(4) sts
+					memcpy(format[col+1].len,"005",3);
+					memcpy(format[col+1].dec,"00",2);
+					format[col+1].tipo='N';
+    	            break;
+    	      case 23: // int4 s9(9) sts
+					memcpy(format[col+1].len,"010",3);
+					memcpy(format[col+1].dec,"00",2);
+					format[col+1].tipo='N';
+    	            break;
+    	      case 20: // int8    s9(18) sts
+					memcpy(format[col+1].len,"019",3);
+					memcpy(format[col+1].dec,"00",2);
+					format[col+1].tipo='N';
+    	            break;
+    	      case 1042: // char (x)
+    	            digits = mod - 4;
+    	            snprintf(tmps,10,"%03d",digits);
+    	            memcpy(format[col+1].len,tmps,3);
+					memcpy(format[col+1].dec,"00",2);
+					format[col+1].tipo='C';
+    	            break;
+    	      case 1043: // varchar (x)
+    	            //snprintf(tmp2,200,"Col:%d, oid:%d, mod:%d, size:%d , len:%d, valor<%s>",
+    	            //   col,oid,mod,size,len,c);
+    	            //MessageBox (0, tmp2, "Hi", MB_ICONINFORMATION);
+
+    	            digits = mod - 4;
+    	            snprintf(tmps,10,"%03d",digits);
+    	            memcpy(format[col+1].len,tmps,3);
+					memcpy(format[col+1].dec,"00",2);
+					format[col+1].tipo='C';
+    	            break;
+    	      case 25: // text
+    	    	    digits = mod - 4;
+    	            snprintf(tmps,10,"%03d",digits);
+    	            memcpy(format[col+1].len,tmps,3);
+					memcpy(format[col+1].dec,"00",2);
+					format[col+1].tipo='C';
+    	            break;
+    	      case 1082: // date
+					memcpy(format[col+1].len,"008",3);
+					memcpy(format[col+1].dec,"00",2);
+					format[col+1].tipo='D';
+    	            break;
+    	      case 1083: // time
+    	            // paseem de format hh:mm:ss a hhmmss
+					memcpy(format[col+1].len,"006",3);
+					memcpy(format[col+1].dec,"00",2);
+					format[col+1].tipo='T';
+    	            break;
+    	      case 1184:
+    	      case 1114: // timestamp aaaa-mm-dd hh:mm:ss mmmmmm -> ddmmaaaahhmmssmmmmmm
+					memcpy(format[col+1].len,"020",3);
+					memcpy(format[col+1].dec,"00",2);
+					format[col+1].tipo='S';
+    	            break;
+    	      default: // altres, es copies les primeres 30 posicions del resultat
+    	            MessageBox (0,"====", "Unknown field type", MB_ICONINFORMATION);
+    	            break;
+    	   }
+    }
+    format[columns + 1].nom[0]=0;
+    PQclear(res);
+	return 0;
+}
 
 
 /***************************************************************************
