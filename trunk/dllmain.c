@@ -47,7 +47,8 @@ DLLIMPORT void sql_trace_off (void)
 /***************************************************************************
  *                                                                         *
  ***************************************************************************/
-
+PGconn *connection_array[MAX_CONNECTIONS];
+int open_connections = 0;
 
 DLLIMPORT int sql_connect(PGconn **conn,char *db)
 {
@@ -72,6 +73,11 @@ DLLIMPORT int sql_connect(PGconn **conn,char *db)
   {
     return -1;
   }
+  /* Keep connection for disconnecting after */
+  if (open_connections < MAX_CONNECTIONS){
+	  connection_array[open_connections] = *conn;
+	  open_connections++;
+  }
   return 0;
 }
 
@@ -86,6 +92,21 @@ DLLIMPORT int sql_error_text(PGconn **conn,char *text){
 
 DLLIMPORT int sql_disconnect(PGconn **conn)
 {
+	/* retire connection from conection array */
+	int i = 0;
+	for (i=0;i<open_connections;i++){
+		if (connection_array[i] == *conn){
+			connection_array[i] =(PGconn *) NULL;
+			break;
+		}
+	}
+	if (open_connections > 0){
+		while((i + 1) < open_connections){
+			connection_array[i] = connection_array[i+1];
+			i++;
+		}
+		open_connections--;
+	}
     PQfinish(*conn);
     return 0;
 }
@@ -853,6 +874,11 @@ DLLIMPORT int sql_exec_file(PGconn **conn,struct sqlca *psqlca,char *filename){
     return ret;
  }
 
+void close_open_connections(){
+	while(open_connections > 0){
+		sql_disconnect(&connection_array[open_connections - 1]);
+	}
+}
 
 
 
@@ -873,13 +899,15 @@ DllMain (
         break;
 
       case DLL_PROCESS_DETACH:
-        break;
+    	  // Disconnect from DB
+    	  close_open_connections();
+          break;
 
       case DLL_THREAD_ATTACH:
         break;
 
       case DLL_THREAD_DETACH:
-        break;
+          break;
     }
 
     /* Returns TRUE on success, FALSE on failure */

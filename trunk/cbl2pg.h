@@ -70,6 +70,7 @@ struct format_camp {
     char tipo;
 };
 
+#define MAX_CONNECTIONS		100
 
 DLLIMPORT void sql_debug_on (void);
 DLLIMPORT void sql_debug_off (void);
