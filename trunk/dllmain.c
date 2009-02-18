@@ -1017,7 +1017,15 @@ DLLIMPORT int sql_exec_file(PGconn **conn,struct sqlca *psqlca,char *filename){
  }
 
 void close_open_connections(){
+    FILE *f;
 	while(open_connections > 0){
+      if(debug || trace) {
+			  if (debug) MessageBox(0,"Close one connection","close_open_connections",MB_ICONINFORMATION);
+			  f = fopen("cbl2pg.log","a+");
+			  if (f != NULL) {
+		            fprintf(f,"# Close connection %d \n", open_connections);
+			  }
+	    }
 		sql_disconnect(&connection_array[open_connections - 1]);
 	}
 }
