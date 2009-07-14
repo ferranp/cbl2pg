@@ -1,0 +1,58 @@
+=======================
+Documetation for cbl2pg
+=======================
+:Info: See <http://www.pegueroles.com/cbl2pg>
+:Author: Ferran Pegueroles <ferran@pegueroles.com>
+:Date: $Date: 2006-01-23 02:13:55 +0100 (Mon, 23 JÇÏn 2006) $
+:Revision: $Revision: 4321 $
+:Description: cbl2pg manual
+
+
+Introduction
+============
+
+cbl2pg is a library to connect cobol programs with a PostgreSQL  database.
+
+It has been tested with AcuCOBOL and with TinyCobol but it can work with any other oobol 
+programa that can call a C library.
+
+Motivation
+==========
+
+I have developed cbl2pg because at that moment I needed to access a PostgreSQL database
+from a cobol program and the only 2 options I had where to go with a commercial and 
+expensive solution accessing the database via ODBC or the ecpg precopiler.
+
+The problem with the comercial version was the price and that you cannot execute arbitrary
+SQL commands. The problem with the ecpg was that it generated a cobol code that was not compatible 
+with the compilers that I was using and that I cannot define dynamic SQL.
+
+All this reasons make me develop this solution.
+
+
+How it works
+============
+
+cbl2pg works as a gateway between the C PostgreSQL library and your cobol program. It 
+adapts the data from cobol to C and from C to cobol.
+
+The most dificult work is to adapt the data row from the C structure to the cobol record, 
+converting each SQL field to a field in a cobol record.
+
+The table 1 shows this conversions :
+
+================  ============================================================
+SQL Type          Cobol Picture
+================  ============================================================
+integer           S9(9) SIGN TRAILING SEPARATE
+small integer     S9(4) SIGN TRAILING SEPARATE
+char(N)           X(N) 
+varchar(N)        X(N)
+numeric(N,M)      S9(P)V(M) SIGN TRAILING SEPARATE (P is N - M)
+date              9(8) format DDMMYYYY
+time              9(6) format HHMMSS
+timestamp         x(20)
+================  ============================================================
+
+
+
