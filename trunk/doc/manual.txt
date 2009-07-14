@@ -1,19 +1,21 @@
 =======================
-Documetation for cbl2pg
+cbl2pg manual
 =======================
 :Info: See <http://www.pegueroles.com/cbl2pg>
 :Author: Ferran Pegueroles <ferran@pegueroles.com>
-:Revision: $Id: manual.txt 10 2009-07-14 10:19:13Z ferran $
-:Description: cbl2pg manual
+:Revision: $Id: manual.txt 12 2009-07-14 16:07:59Z ferran $
+:Description: A cbl2pg manual, explains motivations and usage
 
-
+------------
 Introduction
-============
+------------
 
 cbl2pg is a library to connect cobol programs with a PostgreSQL  database.
 
-It has been tested with AcuCOBOL and with TinyCobol but it can work with any other oobol 
-programa that can call a C library.
+It has been tested with AcuCOBOL on Windows sand with TinyCobol on windows and Linux but 
+it can work with any other oobol programa that can call a C library.
+
+This library is now very mature, and has been used in production environments for many years.
 
 Motivation
 ==========
@@ -28,7 +30,6 @@ with the compilers that I was using and that I cannot define dynamic SQL.
 
 All this reasons make me develop this solution.
 
-
 How it works
 ============
 
@@ -38,13 +39,16 @@ adapts the data from cobol to C and from C to cobol.
 The most dificult work is to adapt the data row from the C structure to the cobol record, 
 converting each SQL field to a field in a cobol record.
 
-The table 1 shows this conversions :
+`Table 1`_ shows this conversions :
+
+.. _Table 1:
 
 ================  ============================================================
 SQL Type          Cobol Picture
 ================  ============================================================
-integer           S9(9) SIGN TRAILING SEPARATE
 small integer     S9(4) SIGN TRAILING SEPARATE
+integer           S9(9) SIGN TRAILING SEPARATE
+big integer       S9(18) SIGN TRAILING SEPARATE
 char(N)           X(N) 
 varchar(N)        X(N)
 numeric(N,M)      S9(P)V(M) SIGN TRAILING SEPARATE (P is N - M)
@@ -53,5 +57,248 @@ time              9(6) format HHMMSS
 timestamp         x(20)
 ================  ============================================================
 
+By now only this types are suported but if needed more can be added.
+
+The cobol program can generate a SQL statement in a PICTURE X field and then pass this 
+field to a route tahat executes the query and returns a pointer that is used to access the 
+data.
+
+The data is returned as a cobol record with the fields formates as shown in `Table 1`_. 
+Usually you know the format anb define a cobol record to receive the data. If you don't
+know the format you can access the returned data field by field with the format.
+
+------------
+Using cbl2pg
+------------
+
+Initializing
+============
+
+Befor using any function of cbl2pg you need to load the library.
+In AcuCOBOL you have to do::
+
+    CALL 'cbl2pg.dll'.
+    
+or::    
+    
+    CALL '\path\to\cbl2pg.dll'.
+    
+In TinyCobol::
+
+    CALL 'libcbl2pg.so'
+    
+    
+Nou you can access all the cbl2pg routines.
+
+Connect to the database
+=======================
+
+To connect to the database you have to call the sql_connect routine. 
+This routine has 2 parameters, the connection handler and the connection strng.
+The connection handler is a pointer to the database connection, in cobol it can be 
+a USAGE POINTER field or a PIC X field with a size bigger than the size of a pointer.
+(A PIC X(10) should always work).
+
+The connection string contains the variables to connect to the database. These variables
+are the same used to connect to the database from any other program.
 
 
+This variables are defines like this::
+
+    01 CONNECT-SQL                   PIC X(200).
+    01 DBHANCLER-SQL                 USAGE POINTER.
+
+You call the sql_connect like this ::
+
+    MOVE "user=john password=secret host=somehost dbname=foo " 
+                TO CONNECT-SQL.
+    CALL 'sql_connect' USING DBHANDLER-SQL CONNECT-SQL
+
+
+If the returned dhhandler-sql is zero, the connection is not possible. Is is not zero 
+the connection has been established and you can work with the database.
+
+It is possible to connect from a program to more than one database or connect various times
+to the same database (for working inside and outside a transaction). To do this, you only need
+to work with diferent dbhandler-sql variables.
+
+
+Execute a query
+===============
+
+If you have a handler to a database you can make queries. To make a query to the database 
+you need to put the query on a PIC X field (terminated by a null values x'00') and then 
+call sql_query.
+
+The parameters of sql_query are the dbhandler, the query handler, that is another USAGE POINTER
+variable thet is used as a pointer to the query resultset, a SQLCA structure to hold the response
+metadata and the query string terminated by a null value. The query string can be arbitrary but needs
+to be terminarted by a null value (the C string terminator). This can be done by using the STRING
+command to string a X'00' at the end of the string or you can define a structure like this::
+
+      01 QUERY-SQL.
+         02 SQL-SQL         PIC X(1000). 
+         02 FILLER          PIC X VALUE X'00'
+
+
+
+The SQLCA_ is a structe that holds the number of recors readed, amb the possible error status and
+error mesages. The SQLCA_ structure is explained below.
+
+A call to sql_query i like this::
+
+           MOVE SPACES TO SQL-SQL.
+           
+           STRING 'SELECT * FROM FOO' X'00' 
+                        DELIMITED BY SIZE INTO SQL-SQL.
+                        
+           CALL 'sql_query' USING DBHANDLER-SQL,QHANDLER-SQL,
+                                  SQLCA,SQL-SQL
+
+
+No you can use the QHANDER to retrieve the values from the resultset (if there is any).
+
+
+Retrieve the result
+===================
+
+You can know if the query has returned any values by examining SQLCODE_ in SQLCA_.
+If the value of SQLCODE_ if zero, then there is a result of the query and this result can be
+obtained using one of the functions in `Table 2`_
+
+.. _Table 2:
+
+====================== =======================================
+Function               Description
+====================== =======================================
+sql_get_line_          Get one row from the result
+sql_get_item_          Get one field from the result by position
+sql_get_item_by_name_  Get one field from the result by name
+sql_get_info_          Get information from the result
+====================== =======================================
+
+sql_get_line
+------------
+This is the main routine to get values from the result. You call this
+routine with the resultret handler, the row number to retrieve and the record
+to get the data in. The routine fills the record with the data from the database following
+the structure from `Table 1`_.
+
+The row
+
+You call the routine from cobol like this::
+
+  CALL 'sql_get_line' USING QHANDLER-SQL,LIN-SQL,RECORD-DATA.
+
+
+sql_get_item
+------------
+
+With this function we can retrieve a value from the result set.
+
+
+You call 
+
+::
+
+   int sql_get_item(PGresult **res,int *lin,int *col,char *value);
+
+sql_get_item_by_name
+--------------------
+
+::
+
+  int sql_get_item_by_name(PGresult **res,int *lin,char *colname,char *value);
+
+
+sql_get_info
+------------
+
+::
+
+  int sql_get_info(PGresult **res,int *lin,int *col,char *value);
+
+
+
+The SQLCA 
+=========
+
+.. _SQLCA:
+
+The sqlca structure 
+
+::
+
+      *
+      *  SQLCA
+      *
+        01 sqlca.
+           05 sqlcaid           pic x(8).
+           05 sqlcabc           pic s9(9) comp-5.
+           05 sqlcode           pic s9(9) comp-5.
+           05 sqlerrm.
+              10 sqlerrml       pic s9(4) comp-5.
+              10 sqlerrmc       pic x(70).
+           05 sqlerrp           pic x(8).
+      *
+      * 1. empty
+      * 2. empty
+      * 3. Num. rows processed (update, delete, inset)
+      * 4. Numero de rows retornades (select , fetch)
+      *
+      *
+      *
+           05 sqlerrd           occurs 6 
+                                pic s9(9) comp-5.
+           05 sqlwarn.
+              10 sqlwarn0       pic x.
+              10 sqlwarn1       pic x.
+              10 sqlwarn2       pic x.
+              10 sqlwarn3       pic x.
+              10 sqlwarn4       pic x.
+              10 sqlwarn5       pic x.
+              10 sqlwarn6       pic x.
+              10 sqlwarn7       pic x.
+           05 sqlext.
+              10 sqlwarn8       pic x.
+              10 sqlwarn9       pic x.
+              10 sqlwarnA       pic x.
+              10 sqlstate       pic x(5).
+              
+.. _SQLCODE:
+
+The SQLCODE
+
+
+
+---------
+Reference
+---------
+::
+
+  int sql_connect(PGconn **conn,char *db);
+  int sql_disconnect(PGconn **conn);
+
+  int sql_error_text(PGconn **conn,char *text);
+
+  int sql_query(PGconn **conn,PGresult **res,struct sqlca *ca,char *sql);
+  int sql_query_free(PGresult **res);
+
+  int sql_get_item(PGresult **res,int *lin,int *col,char *value);
+  int sql_get_item_by_name(PGresult **res,int *lin,char *colname,char *value);
+  int sql_get_line(PGresult **res,int *lin,char *value);
+  int sql_get_info(PGresult **res,int *lin,int *col,char *value);
+
+  int sql_escape(char *sql, int len);
+  
+  int sql_make_update(PGconn **conn,struct sqlca *psqlca,char *data,struct format_camp *format);
+  int sql_make_insert(PGconn **conn,struct sqlca *psqlca,char *data,struct format_camp *format);
+  int sql_make_create(PGconn **conn,struct sqlca *psqlca,struct format_camp *format);
+
+  int sql_exec_file(PGconn **conn,struct sqlca *psqlca,char *filename);
+
+
+
+
+
+              
