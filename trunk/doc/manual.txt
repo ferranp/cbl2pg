@@ -3,8 +3,7 @@ Documetation for cbl2pg
 =======================
 :Info: See <http://www.pegueroles.com/cbl2pg>
 :Author: Ferran Pegueroles <ferran@pegueroles.com>
-:Date: $Date: 2006-01-23 02:13:55 +0100 (Mon, 23 JÇÏn 2006) $
-:Revision: $Revision: 4321 $
+:Revision: $Id: manual.txt 10 2009-07-14 10:19:13Z ferran $
 :Description: cbl2pg manual
 
 
