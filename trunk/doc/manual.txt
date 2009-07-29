@@ -3,16 +3,16 @@ cbl2pg manual
 =======================
 :Info: See <http://www.pegueroles.com/cbl2pg>
 :Author: Ferran Pegueroles <ferran@pegueroles.com>
-:Revision: $Id: manual.txt 12 2009-07-14 16:07:59Z ferran $
+:Revision: $Id: manual.txt 13 2009-07-29 11:40:56Z ferran $
 :Description: A cbl2pg manual, explains motivations and usage
 
 ------------
 Introduction
 ------------
 
-cbl2pg is a library to connect cobol programs with a PostgreSQL  database.
+cbl2pg is a library to connect COBOL programs with a PostgreSQL  database.
 
-It has been tested with AcuCOBOL on Windows sand with TinyCobol on windows and Linux but 
+It has been tested with AcuCOBOL on Windows sand with TinyCOBOL on windows and Linux but 
 it can work with any other oobol programa that can call a C library.
 
 This library is now very mature, and has been used in production environments for many years.
@@ -21,11 +21,11 @@ Motivation
 ==========
 
 I have developed cbl2pg because at that moment I needed to access a PostgreSQL database
-from a cobol program and the only 2 options I had where to go with a commercial and 
+from a COBOL program and the only 2 options I had where to go with a commercial and 
 expensive solution accessing the database via ODBC or the ecpg precopiler.
 
 The problem with the comercial version was the price and that you cannot execute arbitrary
-SQL commands. The problem with the ecpg was that it generated a cobol code that was not compatible 
+SQL commands. The problem with the ecpg was that it generated a COBOL code that was not compatible 
 with the compilers that I was using and that I cannot define dynamic SQL.
 
 All this reasons make me develop this solution.
@@ -33,18 +33,18 @@ All this reasons make me develop this solution.
 How it works
 ============
 
-cbl2pg works as a gateway between the C PostgreSQL library and your cobol program. It 
-adapts the data from cobol to C and from C to cobol.
+cbl2pg works as a gateway between the C PostgreSQL library and your COBOL program. It 
+adapts the data from COBOL to C and from C to COBOL.
 
-The most dificult work is to adapt the data row from the C structure to the cobol record, 
-converting each SQL field to a field in a cobol record.
+The most dificult work is to adapt the data row from the C structure to the COBOL record, 
+converting each SQL field to a field in a COBOL record.
 
 `Table 1`_ shows this conversions :
 
 .. _Table 1:
 
 ================  ============================================================
-SQL Type          Cobol Picture
+SQL Type          COBOL Picture
 ================  ============================================================
 small integer     S9(4) SIGN TRAILING SEPARATE
 integer           S9(9) SIGN TRAILING SEPARATE
@@ -59,12 +59,12 @@ timestamp         x(20)
 
 By now only this types are suported but if needed more can be added.
 
-The cobol program can generate a SQL statement in a PICTURE X field and then pass this 
+The COBOL program can generate a SQL statement in a PICTURE X field and then pass this 
 field to a route tahat executes the query and returns a pointer that is used to access the 
 data.
 
-The data is returned as a cobol record with the fields formates as shown in `Table 1`_. 
-Usually you know the format anb define a cobol record to receive the data. If you don't
+The data is returned as a COBOL record with the fields formates as shown in `Table 1`_. 
+Usually you know the format anb define a COBOL record to receive the data. If you don't
 know the format you can access the returned data field by field with the format.
 
 ------------
@@ -83,7 +83,7 @@ or::
     
     CALL '\path\to\cbl2pg.dll'.
     
-In TinyCobol::
+In TinyCOBOL::
 
     CALL 'libcbl2pg.so'
     
@@ -95,7 +95,7 @@ Connect to the database
 
 To connect to the database you have to call the sql_connect routine. 
 This routine has 2 parameters, the connection handler and the connection strng.
-The connection handler is a pointer to the database connection, in cobol it can be 
+The connection handler is a pointer to the database connection, in COBOL it can be 
 a USAGE POINTER field or a PIC X field with a size bigger than the size of a pointer.
 (A PIC X(10) should always work).
 
@@ -125,6 +125,8 @@ to work with diferent dbhandler-sql variables.
 
 Execute a query
 ===============
+
+.. _sql_query:
 
 If you have a handler to a database you can make queries. To make a query to the database 
 you need to put the query on a PIC X field (terminated by a null values x'00') and then 
@@ -186,44 +188,241 @@ the structure from `Table 1`_.
 
 The row
 
-You call the routine from cobol like this::
+You call the routine from COBOL as::
 
   CALL 'sql_get_line' USING QHANDLER-SQL,LIN-SQL,RECORD-DATA.
 
+QHANDLER-SQL is the query handler os a select that returned some data.
+LIN-SQL is an integer type (PIC INTEGER or PIC 9 COMP-X) with the name of the
+line to retrive idexed by zero (first line is line 0).
 
 sql_get_item
 ------------
 
-With this function we can retrieve a value from the result set.
+With this function we can retrieve a value from the result set, not an entire 
+row but a single column of a row. The column is returned with the data from the 
+database following the structure from `Table 1`_.
 
+You call the routine from COBOL as ::
 
-You call 
+  CALL 'sql_get_item' USING QHANDLER-SQL,LIN-SQL,COL-SQL,FIELD-DATA.
 
-::
-
-   int sql_get_item(PGresult **res,int *lin,int *col,char *value);
+The parameters are eht same es in sql_get_line_ , adding the COL-SQL that is the 
+index begining from zero of the column to return.
 
 sql_get_item_by_name
 --------------------
 
-::
+This routine works like sql_get_item_ but retrieves data by column name instead of
+by column position. 
 
-  int sql_get_item_by_name(PGresult **res,int *lin,char *colname,char *value);
+You call the routine from COBOL as ::
 
+  CALL 'sql_get_item_by_name' USING QHANDLER-SQL,LIN-SQL,COLNAME-SQL,FIELD-DATA.
+
+The COLNAME-SQL is a NULL ternimanted string that contains the name of the column
+to retrieve.
 
 sql_get_info
 ------------
 
-::
+This fucntion is used to retrieve information about the format of a field in the 
+result set. The parameters are the same as sql_get_item_.
 
-  int sql_get_info(PGresult **res,int *lin,int *col,char *value);
+You call the routine from COBOL as ::
+
+  CALL 'sql_get_info' USING QHANDLER-SQL,LIN-SQL,COL-SQL,INFO-DATA.
 
 
+Update and insert shortcuts
+===========================
+
+To make easier the operations of insert and update to the database from a COBOL record 
+we created to simple functions sql_make_update_ and sql_make_insert_
+
+This fucntions get the database table structure from a table in memory, create the 
+SQL INSERT or UPDATE statement with the data from a COBOL record and sent it to 
+the database.
+
+The memory table that defines the format of the database is used to make is possible
+to the routine to interpret the data in the record and to get the field names.
+
+This table can be created from the metadata in the database with the sql_create_field_table_
+function or can be written by hand. The format of this table is shown in `Table Format`_
+
+`Table 1`_ shows the functions involved in this proces.
+
+.. _Table 3:
+
+======================= ====================================================
+Function                Description
+======================= ====================================================
+sql_make_update_        Helper to make an update of a record in the database
+sql_make_insert_        Helper to insert a record in the database
+sql_create_field_table_ Inspect the database to get the table of fields
+======================= ====================================================
+
+sql_make_update
+---------------
+
+This routine does a database update of a row from a COBOL record. The routine makes it
+very easy to uopdate a record, without the need to create a full SQL string with all
+the fields correctly edited. 
+
+All text fields are also escaped with sql_escape_ to prevent SQL injection errors.
+
+
+You call the routine from COBOL as ::
+
+  CALL 'sql_make_update' USING DBHANDLER-SQL,SQLCA,DATA-RECORD,TABLE-FORMAT .
+
+The parameters of the call are the database connection, the SQLCA_ structure like in
+sql_query_, the data record to insert and the table format as described in `Table format`_.
+
+
+sql_make_insert
+---------------
+
+This function is used to make an update of a row in the database from a COBOL record.
+
+All the columns of the row are updated except the rows marked as primary keys in the table 
+fotmat.
+
+You call the routine from COBOL as ::
+
+  CALL 'sql_make_insert' USING DBHANDLER-SQL,SQLCA,DATA-RECORD,TABLE-FORMAT .
+
+Like sql_make_update_ this function takes the database connection, the SQLCA_ structure , 
+the data record to insert and the table format as described in `Table format`_.
+
+
+Table format specification
+--------------------------
+
+.. _`Table format`:
+
+For sql_make_update_ and sql_make_insert_ to work we need a structure to describe the 
+format of the table we are working on.
+
+This structure is defined on a COBOL structure and can be used in all the calls to 
+sql_make_update_ and sql_make_insert_.
+
+The table is structured with 27 char long items. The first item contains the 
+table name. This is a limitation of the format because only supports 27 chars long
+table names.
+
+
+The next items in the table descrive table fields.
+
+.. _Table 4:
+
+======== ===== ===========================================================
+Position Size  Description
+======== ===== ===========================================================
+1        20    Field name
+21       3     Field total size in the cobol record, zero padded
+               If the field is numeric it includes decimals and
+               the sign.
+24       2     Decimal positions. Only meaningfull with numeric fields
+25       1     Primary key indicator. Indicates if field is a primeray key
+               
+               Posible values :
+               
+               - K : Is a primary key
+               - k : Is a primary key, but not used on insert. used for
+                 autonumeric primary keys.
+               - blank : Not a primary key
+                 
+26       1     Field type indicator . Indicated the type of the  database 
+               field
+
+               Posible values :
+               
+               - C : Text or char field
+               - N : Numeric field
+               - D : Date field (Format DDMMYYYY)
+               - T : Time field (Format HHMMSS)
+               - S : Timestamp field
+               - blank : Field no used for insert or update. used for 
+                 automatic like auto-timestamps or un-updatable fields 
+                 
+======== ===== ===========================================================
+
+.. _`Table format sample`:
+
+
+This is an sample of this a table and the format to update it ::
+
+       CREATE TABLE product {
+          id serial, 
+          created date,
+          description char(128),
+          price numeric(9,2),
+       }
+       
+       
+       01 llista-expedi.
+          02 filler pic x(27) value 'product                    ' .
+          02 filler pic x(27) value 'id                  01000kN'.
+          02 filler pic x(27) value 'created             00800 D'.
+          02 filler pic x(27) value 'description         12800 C'.
+          02 filler pic x(27) value 'price               01002 N'.
+          02 filler pic x(27) value x'00'.
+
+
+There is a lot of work to write and maintain by hand the structure of all 
+the fields of this table. This work can be rediced using sql_create_field_table_.
+
+
+sql_create_field_table
+----------------------
+
+With this fucntion we can get all the information to fill the `Table format`_
+from the database. 
+We only need to define a data record with enough space to get all the data, put in 
+the table name and call the function.
+
+
+You call the routine from COBOL as ::
+
+  CALL 'sql_create_field_table' USING DBHANDLER-SQL,TABLE-FORMAT .
+
+All the fields and field types are read from the database and the field table
+is ready to be used.
+
+Miscelaneous fucntions
+======================
+
+======================= =======================================
+Function                Description
+======================= =======================================
+sql_make_create_        Create a table from a field table description
+sql_escape_             Escape a text string to be used in a SQL query
+sql_exec_file_          Execute SQL from a text file.
+======================= =======================================
+
+sql_make_create
+---------------
+
+TODO
+
+sql_escape
+----------
+
+TODO
+
+sql_exec_file
+-------------
+
+TODO
 
 The SQLCA 
 =========
 
 .. _SQLCA:
+
+
+TODO
 
 The sqlca structure 
 
@@ -244,7 +443,7 @@ The sqlca structure
       * 1. empty
       * 2. empty
       * 3. Num. rows processed (update, delete, inset)
-      * 4. Numero de rows retornades (select , fetch)
+      * 4. Number of rows returned (select , fetch)
       *
       *
       *
@@ -264,16 +463,19 @@ The sqlca structure
               10 sqlwarn9       pic x.
               10 sqlwarnA       pic x.
               10 sqlstate       pic x(5).
-              
-.. _SQLCODE:
 
 The SQLCODE
+-----------              
+
+.. _SQLCODE:
+
+TODO
 
 
 
----------
-Reference
----------
+--------------------
+C routines reference
+--------------------
 ::
 
   int sql_connect(PGconn **conn,char *db);
@@ -288,13 +490,14 @@ Reference
   int sql_get_item_by_name(PGresult **res,int *lin,char *colname,char *value);
   int sql_get_line(PGresult **res,int *lin,char *value);
   int sql_get_info(PGresult **res,int *lin,int *col,char *value);
-
-  int sql_escape(char *sql, int len);
   
   int sql_make_update(PGconn **conn,struct sqlca *psqlca,char *data,struct format_camp *format);
   int sql_make_insert(PGconn **conn,struct sqlca *psqlca,char *data,struct format_camp *format);
+  int sql_create_field_table(PGconn **conn,struct format_camp *format);
+
   int sql_make_create(PGconn **conn,struct sqlca *psqlca,struct format_camp *format);
 
+  int sql_escape(char *sql, int len);
   int sql_exec_file(PGconn **conn,struct sqlca *psqlca,char *filename);
 
 
