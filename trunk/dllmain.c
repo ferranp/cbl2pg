@@ -657,6 +657,7 @@ DLLIMPORT int sql_escape(char *sql, int len){
     sqlto=malloc(len + 1);
     PQescapeString(sqlto,sql,len);
     memcpy(sql,sqlto,len);
+    free(sqlto);
     return 0;
 }
 /***************************************************************************
