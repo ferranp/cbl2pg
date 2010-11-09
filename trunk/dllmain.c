@@ -130,6 +130,152 @@ DLLIMPORT int sql_disconnect(PGconn **conn)
 /***************************************************************************
  *                                                                         *
  ***************************************************************************/
+
+static int charset_conversion = 0;
+DLLIMPORT void sql_charset_conversion_on (void)
+{
+	charset_conversion = 1;
+    return;
+}
+
+DLLIMPORT void sql_charset_conversion_off (void)
+{
+	charset_conversion = 0;
+    return;
+}
+/***************************************************************************
+ *                                                                         *
+ ***************************************************************************/
+char _conversion_iso885915_to_cp850[89][2] =	{
+		{160,255},
+		{161,173},
+		{162,189},
+		{163,156},
+		{165,190},
+		{167,245},
+		{169,184},
+		{170,166},
+		{171,174},
+		{172,170},
+		{173,240},
+		{174,169},
+		{175,238},
+		{176,248},
+		{177,241},
+		{178,253},
+		{179,252},
+		{181,230},
+		{182,244},
+		{183,250},
+		{185,251},
+		{186,167},
+		{187,175},
+		{191,168},
+		{192,183},
+		{193,181},
+		{194,182},
+		{195,199},
+		{196,142},
+		{197,143},
+		{198,146},
+		{199,128},
+		{200,212},
+		{201,144},
+		{202,210},
+		{203,211},
+		{204,222},
+		{205,214},
+		{206,215},
+		{207,216},
+		{208,209},
+		{209,165},
+		{210,227},
+		{211,224},
+		{212,226},
+		{213,229},
+		{214,153},
+		{215,158},
+		{216,157},
+		{217,235},
+		{218,233},
+		{219,234},
+		{220,154},
+		{221,237},
+		{222,232},
+		{223,225},
+		{224,133},
+		{225,160},
+		{226,131},
+		{227,198},
+		{228,132},
+		{229,134},
+		{230,145},
+		{231,135},
+		{232,138},
+		{233,130},
+		{234,136},
+		{235,137},
+		{236,141},
+		{237,161},
+		{238,140},
+		{239,139},
+		{240,208},
+		{241,164},
+		{242,149},
+		{243,162},
+		{244,147},
+		{245,228},
+		{246,148},
+		{247,246},
+		{248,155},
+		{249,151},
+		{250,163},
+		{251,150},
+		{252,129},
+		{253,236},
+		{254,231},
+		{255,152},
+		{0,0}
+};
+
+void iso885915_to_cp850(char *text,int len){
+	if (charset_conversion == 0){
+		return ;
+	}
+	int i = 0, c = 0;
+	for(c=0;c<len;c++){
+		for(i=0;;i++){
+			if (_conversion_iso885915_to_cp850[i][0] == 0){
+				break;
+			}
+			if (_conversion_iso885915_to_cp850[i][0] == text[c]){
+				text[c] = _conversion_iso885915_to_cp850[i][1];
+				break;
+			}
+		}
+	}
+}
+void cp850_to_iso885915(char *text,int len){
+	if (charset_conversion == 0){
+		return ;
+	}
+	int i = 0, c = 0;
+	for(c=0;c<len;c++){
+		for(i=0;;i++){
+			if (_conversion_iso885915_to_cp850[i][0] == 0){
+				break;
+			}
+			if (_conversion_iso885915_to_cp850[i][1] == text[c]){
+				text[c] = _conversion_iso885915_to_cp850[i][0];
+				break;
+			}
+		}
+	}
+}
+
+/***************************************************************************
+ *                                                                         *
+ ***************************************************************************/
 DLLIMPORT int sql_create_field_table(PGconn **conn,struct format_camp *format){
     char sql[100];
     char table[30];
@@ -137,7 +283,7 @@ DLLIMPORT int sql_create_field_table(PGconn **conn,struct format_camp *format){
     int columns,col;
     int oid,mod,size;
     int digits,decimals;
-    int i;
+    //int i;
 
     PGresult *res;
     if (conn == NULL){
@@ -393,7 +539,7 @@ int format_item(PGresult *res,int lin,int col,char *result){
    char *c;
    double num;
    char tmp[21];
-   char tmp2[200];
+   //char tmp2[200];
 
 
    oid=PQftype(res,col);
@@ -500,6 +646,7 @@ int format_item(PGresult *res,int lin,int col,char *result){
             digits = mod - 4;
             if (strlen(c) == 0) return digits;
             memcpy(result,c,digits);
+            iso885915_to_cp850(result,digits);
             //snprintf(tmp,20,"Len ; %d,val<%s>",len,c);
             //MessageBox (0, tmp, "char(x)", MB_ICONINFORMATION);
             return digits;
@@ -513,6 +660,7 @@ int format_item(PGresult *res,int lin,int col,char *result){
             if (strlen(c) == 0) return digits;
             memset(result,' ',digits);
             memcpy(result,c,strlen(c));
+            iso885915_to_cp850(result,digits);
             //snprintf(tmp,20,"Len ; %d,val<%s>",len,c);
             //MessageBox (0, tmp, "char(x)", MB_ICONINFORMATION);
             return digits;
@@ -521,6 +669,7 @@ int format_item(PGresult *res,int lin,int col,char *result){
             digits = strlen(c);
             if (strlen(c) == 0) return digits;
             memcpy(result,c,digits);
+            iso885915_to_cp850(result,digits);
             //snprintf(tmp,20,"Len ; %d,val<%s>",len,c);
             //MessageBox (0, tmp, "char(x)", MB_ICONINFORMATION);
             return digits;
@@ -683,6 +832,7 @@ int formatejar_camp(char *sql,char*pdata,struct format_camp *pformat,char *valor
    }
    switch(pformat->tipo){
            case 'C':
+        	   	     cp850_to_iso885915(pdata,len);
                      strcat(sql,"'");
                      PQescapeString(camp_editat,pdata,len);
                      int ll;
