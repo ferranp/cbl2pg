@@ -15,7 +15,7 @@
  *	use header files that are otherwise internal to Postgres to interface
  *	with the backend.
  *
- * $Id: postgres_ext.h 3 2006-10-23 21:11:42Z ferran $
+ * $PostgreSQL: pgsql/src/include/postgres_ext.h,v 1.17 2007/02/06 09:16:08 petere Exp $
  *
  *-------------------------------------------------------------------------
  */
@@ -28,19 +28,32 @@
  */
 typedef unsigned int Oid;
 
+#ifdef __cplusplus
+#define InvalidOid		(Oid(0))
+#else
 #define InvalidOid		((Oid) 0)
+#endif
 
 #define OID_MAX  UINT_MAX
 /* you will need to include <limits.h> to use the above #define */
 
 
 /*
- * NAMEDATALEN is the max length for system identifiers (e.g. table names,
- * attribute names, function names, etc).  It must be a multiple of
- * sizeof(int) (typically 4).
- *
- * NOTE that databases with different NAMEDATALEN's cannot interoperate!
+ * Identifiers of error message fields.  Kept here to keep common
+ * between frontend and backend, and also to export them to libpq
+ * applications.
  */
-#define NAMEDATALEN 64
+#define PG_DIAG_SEVERITY		'S'
+#define PG_DIAG_SQLSTATE		'C'
+#define PG_DIAG_MESSAGE_PRIMARY 'M'
+#define PG_DIAG_MESSAGE_DETAIL	'D'
+#define PG_DIAG_MESSAGE_HINT	'H'
+#define PG_DIAG_STATEMENT_POSITION 'P'
+#define PG_DIAG_INTERNAL_POSITION 'p'
+#define PG_DIAG_INTERNAL_QUERY	'q'
+#define PG_DIAG_CONTEXT			'W'
+#define PG_DIAG_SOURCE_FILE		'F'
+#define PG_DIAG_SOURCE_LINE		'L'
+#define PG_DIAG_SOURCE_FUNCTION 'R'
 
 #endif

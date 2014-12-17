@@ -281,7 +281,9 @@ DLLIMPORT int sql_create_field_table(PGconn **conn,struct format_camp *format){
     char table[30];
     char tmps[10];
     int columns,col;
-    int oid,mod,size;
+    //int size;
+    int oid,mod;
+
     int digits,decimals;
     //int i;
 
@@ -334,7 +336,7 @@ DLLIMPORT int sql_create_field_table(PGconn **conn,struct format_camp *format){
     	   memcpy(format[col+1].nom, PQfname(res,col),strlen(PQfname(res,col)));
     	   oid=PQftype(res,col);
     	   mod=PQfmod(res,col);
-    	   size=PQfsize(res,col);
+    	   //size=PQfsize(res,col);
     	   switch(oid){
     	      case 1700: // numeric
     	            digits= ((mod - 4) >> 16) ; //-4
@@ -528,7 +530,8 @@ DLLIMPORT int sql_query_free(PGresult **res){
  ***************************************************************************/
 int format_item(PGresult *res,int lin,int col,char *result){
 
-   int oid,mod,size,len;
+   int oid,mod;
+   // int size,len;
    long int inum;
    int i;
    long long int lnum;
@@ -544,10 +547,10 @@ int format_item(PGresult *res,int lin,int col,char *result){
 
    oid=PQftype(res,col);
    mod=PQfmod(res,col);
-   size=PQfsize(res,col);
-   len=PQgetlength(res,lin,col);
    c=PQgetvalue(res,lin,col);
 
+   //size=PQfsize(res,col);
+   //len=PQgetlength(res,lin,col);
    //  snprintf(tmp2,200,"oid: %d size: %d len: %d,lin:%d",oid,size,len,lin);
    //  MessageBox (0, tmp2, c, MB_ICONINFORMATION);
 
@@ -624,7 +627,9 @@ int format_item(PGresult *res,int lin,int col,char *result){
             lnum = strtoll (c, NULL, 0);
 
 
-            snprintf(tmp,21,"%020lld",lnum);
+            //snprintf(tmp,21,"%020lld",lnum);
+            snprintf(tmp,21,"%020I64d",lnum);
+
 
             //MessageBox (0, tmp, "Hi", MB_ICONINFORMATION);
 
@@ -717,7 +722,7 @@ int format_item(PGresult *res,int lin,int col,char *result){
             break;
    }
 
-
+   return 0;
 }
 /***************************************************************************
  *                                                                         *
@@ -940,6 +945,9 @@ int asignar_camp(char *sql,char *pdata,struct format_camp *pformat){
 //        sprintf(tmp,"len:%d,dec:%d",len,dec);
 //        MessageBox (0, tmp, "Hi", MB_ICONINFORMATION);
     long_nom=strcspn(pformat->nom," ");
+    if (long_nom > 20) {
+  	  long_nom = 20;
+    }
 
     strncat(sql,pformat->nom,long_nom);
     strcat(sql,"=");
@@ -967,6 +975,9 @@ DLLIMPORT int sql_make_update(PGconn **conn,struct sqlca *psqlca,char *data,stru
   //  sprintf(sql,"update %s set \0",format->nom);
     strcpy(sql,"update ");
     long_nom=strcspn(format->nom," ");
+    if (long_nom > sizeof(struct format_camp)){
+      long_nom=sizeof(struct format_camp);
+    }
     strncat(sql,format->nom,long_nom);
     strcat(sql," set ");
 
@@ -1039,6 +1050,9 @@ DLLIMPORT int sql_make_insert(PGconn **conn,struct sqlca *psqlca,char *data,stru
     //sql[0]=0;
     strcpy(sql,"insert into ");
     long_nom=strcspn(format->nom," ");
+    if (long_nom > sizeof(struct format_camp)){
+      long_nom=sizeof(struct format_camp);
+    }
     strncat(sql,format->nom,long_nom);
     strcat(sql," (");
 
@@ -1047,12 +1061,14 @@ DLLIMPORT int sql_make_insert(PGconn **conn,struct sqlca *psqlca,char *data,stru
 //       MessageBox (0, sql, "Debug", MB_ICONINFORMATION);
     }*/
 
-
     pformat=format;
     for(i=0;i< camps;i++){
         pformat++;
         if ((pformat->key != 'k') && (pformat->tipo != ' ')) {
           long_nom=strcspn(pformat->nom," ");
+          if (long_nom > 20) {
+        	  long_nom = 20;
+          }
           strncat(sql,pformat->nom,long_nom);
           strcat(sql,",");
         }
