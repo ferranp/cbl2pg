@@ -87,7 +87,7 @@ struct format_camp {
     char tipo;
 };
 
-#define MAX_CONNECTIONS		100
+#define MAX_CONNECTIONS		200
 
 DLLIMPORT void sql_debug_on (void);
 DLLIMPORT void sql_debug_off (void);
@@ -97,6 +97,7 @@ DLLIMPORT void sql_trace_off (void);
 
 DLLIMPORT int sql_connect(PGconn **conn,char *db);
 DLLIMPORT int sql_disconnect(PGconn **conn);
+DLLIMPORT void sql_disconnect_all();
 
 DLLIMPORT int sql_error_text(PGconn **conn,char *text);
 

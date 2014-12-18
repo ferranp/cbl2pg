@@ -110,6 +110,7 @@ DLLIMPORT int sql_error_text(PGconn **conn,char *text){
 DLLIMPORT int sql_disconnect(PGconn **conn)
 {
 	/* retire connection from conection array */
+	FILE *f;
 	int i = 0;
 	for (i=0;i<open_connections;i++){
 		if (connection_array[i] == *conn){
@@ -124,12 +125,25 @@ DLLIMPORT int sql_disconnect(PGconn **conn)
 		}
 		open_connections--;
 	}
-    PQfinish(*conn);
+
+    if(debug || trace){
+		  if (debug) MessageBox(0,"sql_disconnect","Disconnected ",MB_ICONINFORMATION);
+		  f = fopen("cbl2pg.log","a+");
+		  if (f != NULL) {
+				fprintf(f,"# Disconnect %d \n", (int)conn);
+				fprintf(f,"# Connection count %d \n", open_connections);
+		  }
+    }
+
+	PQfinish(*conn);
     return 0;
 }
+
 /***************************************************************************
  *                                                                         *
  ***************************************************************************/
+
+
 
 static int charset_conversion = 0;
 DLLIMPORT void sql_charset_conversion_on (void)
@@ -1201,7 +1215,8 @@ DLLIMPORT int sql_exec_file(PGconn **conn,struct sqlca *psqlca,char *filename){
  }
 
 void close_open_connections(){
-    FILE *f;
+	FILE *f;
+	PGconn *conn;
 	while(open_connections > 0){
       if(debug || trace) {
 			  if (debug) MessageBox(0,"Close one connection","close_open_connections",MB_ICONINFORMATION);
@@ -1210,10 +1225,15 @@ void close_open_connections(){
 		            fprintf(f,"# Close connection %d \n", open_connections);
 			  }
 	    }
-		sql_disconnect(&connection_array[open_connections - 1]);
+      	conn = connection_array[open_connections - 1];
+		sql_disconnect(&conn);
 	}
 }
 
+
+DLLIMPORT void sql_disconnect_all() {
+	close_open_connections();
+}
 
 
 //   MessageBox (0, str, "Hi", MB_ICONINFORMATION);
