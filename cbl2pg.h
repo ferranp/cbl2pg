@@ -30,8 +30,10 @@
 #include <math.h>
 #include <string.h>
 #include <time.h>
-
+#include <errno.h>
 #include "libpq-fe.h"
+#include "iconv.h"
+
 /*
    sqlca :
 */
@@ -87,13 +89,19 @@ struct format_camp {
     char tipo;
 };
 
-#define MAX_CONNECTIONS		200
-
 DLLIMPORT void sql_debug_on (void);
 DLLIMPORT void sql_debug_off (void);
+DLLIMPORT void sql_set_debug (const char *level);
+DLLIMPORT void sql_dll_compilation (void);
+DLLIMPORT void sql_print_encoding (PGconn **conn);
 
+DLLIMPORT void sql_set_client_encoding (const char *encoding);
+DLLIMPORT void sql_charset_conversion_on (void);
+DLLIMPORT void sql_charset_conversion_off (void);
 DLLIMPORT void sql_trace_on (void);
 DLLIMPORT void sql_trace_off (void);
+DLLIMPORT void sql_set_trace_filepath (const char *filepath);
+DLLIMPORT void ext_trace (const char *text);
 
 DLLIMPORT int sql_connect(PGconn **conn,char *db);
 DLLIMPORT int sql_disconnect(PGconn **conn);
@@ -108,6 +116,7 @@ DLLIMPORT int sql_get_item(PGresult **res,int *lin,int *col,char *value);
 DLLIMPORT int sql_get_item_by_name(PGresult **res,int *lin,char *colname,char *value);
 DLLIMPORT int sql_get_line(PGresult **res,int *lin,char *value);
 DLLIMPORT int sql_get_info(PGresult **res,int *lin,int *col,char *value);
+DLLIMPORT int sql_print_info(PGresult **res,int *lin,int *col);
 
 DLLIMPORT int sql_escape(char *sql, int len);
 

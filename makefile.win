@@ -1,5 +1,6 @@
 # Project: cbl2pg
 # Makefile created by Dev-C++ 4.9.8.0
+#
 
 CPP  = g++.exe
 CC   = gcc.exe
@@ -7,11 +8,11 @@ WINDRES = windres.exe
 RES  = 
 OBJ  = dllmain.o $(RES)
 LINKOBJ  = dllmain.o $(RES)
-LIBS =  -L"C:/ARCHIVOS DE PROGRAMA/DEV-CPP/lib" -L"U:/gen/cbl2pg" --no-export-all-symbols --add-stdcall-alias -lpq 
-INCS =  -I"C:/ARCHIVOS DE PROGRAMA/DEV-CPP/include" 
-CXXINCS =  -I"C:/ARCHIVOS DE PROGRAMA/DEV-CPP/include/c++"  -I"C:/ARCHIVOS DE PROGRAMA/DEV-CPP/include/c++/mingw32"  -I"C:/ARCHIVOS DE PROGRAMA/DEV-CPP/include/c++/backward"  -I"C:/ARCHIVOS DE PROGRAMA/DEV-CPP/include" 
+LIBS =  -L"U:/gen/cbl2pg/MinGW/lib" -L"U:/gen/cbl2pg/lib" --no-export-all-symbols --add-stdcall-alias -lpq -liconv
+INCS =  -I"U:/gen/cbl2pg/MinGW/include" 
+#CXXINCS =  -I"U:/gen/cbl2pg/MinGW/include/c++/3.4.5"  -I"U:/gen/cbl2pg/MinGW/include/c++/3.4.5/mingw32"  -I"U:/gen/cbl2pg/MinGW/include/c++/3.4.5/backward"  -I"U:/gen/cbl2pg/MinGW/include" 
 BIN  = cbl2pg.dll
-CXXFLAGS = $(CXXINCS) 
+#CXXFLAGS = $(CXXINCS) 
 CFLAGS = $(INCS)-DBUILDING_DLL=1  
 
 .PHONY: all all-before all-after clean clean-custom
@@ -20,14 +21,16 @@ all: all-before cbl2pg.dll all-after
 
 
 clean: clean-custom
-	rm -f $(OBJ) $(BIN)
+	del $(OBJ) $(BIN)
 
 DLLWRAP=dllwrap.exe
 DEFFILE=libcbl2pg.def
 STATICLIB=libcbl2pg.a
 
 $(BIN): $(LINKOBJ)
+#	$(DLLWRAP) --def $(DEFFILE) --implib $(STATICLIB) $(LINKOBJ) $(LIBS) -o $(BIN)
 	$(DLLWRAP) --output-def $(DEFFILE) --implib $(STATICLIB) $(LINKOBJ) $(LIBS) -o $(BIN)
+	echo "%date% %time%"
 
 dllmain.o: dllmain.c
 	$(CC) -c dllmain.c -o dllmain.o $(CFLAGS)
